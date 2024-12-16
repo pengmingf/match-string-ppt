@@ -142,7 +142,7 @@ func BenchmarkStringMatch(b *testing.B) {
 }
 
 // 验证两种算法结果一致性的测试
-func TestMatchConsistency(t *testing.T) {
+func TestMatchConsistency1(t *testing.T) {
 	testCases := []testCase{
 		{
 			name:    "中文基本匹配",
