@@ -10,7 +10,7 @@ type multiPatternTestCase struct {
 	name     string
 	text     string
 	patterns []string
-	ac       *AC
+	ac       *acTree
 	trie     *Trie
 }
 
@@ -79,7 +79,7 @@ func BenchmarkMultiPatternMatch(b *testing.B) {
 		},
 		{
 			name:     "模式串前缀重叠",
-			text:     generateRepeatedText("测试测试测和测试测试测���", 100),
+			text:     generateRepeatedText("测试测试测和测试测试测", 100),
 			patterns: []string{"测试", "测试测", "测试测试", "测试测试测"},
 		},
 		{
@@ -111,7 +111,10 @@ func BenchmarkMultiPatternMatch(b *testing.B) {
 
 	// 预处理所有测试用例
 	for i := range testCases {
-		testCases[i].ac = BuildAC(testCases[i].patterns)
+		ac := NewAc()
+		ac.Build(testCases[i].patterns)
+		testCases[i].ac = ac
+
 		testCases[i].trie = BuildTrie(testCases[i].patterns)
 	}
 
@@ -121,15 +124,15 @@ func BenchmarkMultiPatternMatch(b *testing.B) {
 		b.Run("Trie_"+tc.name+"_Patterns_"+strconv.Itoa(len(tc.patterns)), func(b *testing.B) {
 			b.ResetTimer()
 			for i := 0; i < b.N; i++ {
-				tc.trie.Search(tc.text)
+				tc.trie.SearchList(tc.text)
 			}
 		})
 
-		// AC自动机测试
+		// 修改AC自动机测试，使用Scan方法
 		b.Run("AC_"+tc.name+"_Patterns_"+strconv.Itoa(len(tc.patterns)), func(b *testing.B) {
 			b.ResetTimer()
 			for i := 0; i < b.N; i++ {
-				tc.ac.Search(tc.text)
+				tc.ac.Scan(tc.text)
 			}
 		})
 	}
@@ -166,10 +169,24 @@ func TestMatchConsistency(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			ac := BuildAC(tc.patterns)
+			ac := NewAc()
+			ac.Build(tc.patterns)
 			trie := BuildTrie(tc.patterns)
 
-			acResult := ac.Search(tc.text)
+			acResult := make(map[string][]int)
+			// 将Scan的���果转换为map格式以便比较
+			acMatches := ac.Scan(tc.text)
+			for _, match := range acMatches {
+				if acResult[match] == nil {
+					acResult[match] = make([]int, 0)
+				}
+				// 查找匹配位置
+				pos := strings.Index(tc.text, match)
+				if pos != -1 {
+					acResult[match] = append(acResult[match], pos)
+				}
+			}
+
 			trieResult := trie.Search(tc.text)
 
 			// 比较结果
